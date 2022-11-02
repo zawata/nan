@@ -9,6 +9,10 @@
 #ifndef NAN_OBJECT_WRAP_H_
 #define NAN_OBJECT_WRAP_H_
 
+namespace {
+  static uint16_t kEmbedderId = 0x6969;
+}
+
 class ObjectWrap {
  public:
   ObjectWrap() {
@@ -29,10 +33,10 @@ class ObjectWrap {
   template <class T>
   static inline T* Unwrap(v8::Local<v8::Object> object) {
     assert(!object.IsEmpty());
-    assert(object->InternalFieldCount() > 0);
+    assert(object->InternalFieldCount() > InternalFields::kSlot);
     // Cast to ObjectWrap before casting to T.  A direct cast from void
     // to T won't work right when T has more than one base class.
-    void* ptr = GetInternalFieldPointer(object, 0);
+    void* ptr = GetInternalFieldPointer(object, InternalFields::kSlot);
     ObjectWrap* wrap = static_cast<ObjectWrap*>(ptr);
     return static_cast<T*>(wrap);
   }
@@ -49,10 +53,19 @@ class ObjectWrap {
 
 
  protected:
+  // These fields must match internal v8 EmbedderDataSlot Indicies.
+  // TODO: get a source location
+  enum InternalFields {
+    kWrapperType,
+    kSlot,
+    kInternalFieldCount
+  };
+
   inline void Wrap(v8::Local<v8::Object> object) {
     assert(persistent().IsEmpty());
-    assert(object->InternalFieldCount() > 0);
-    SetInternalFieldPointer(object, 0, this);
+    assert(object->InternalFieldCount() > InternalFields::kSlot);
+    Nan::SetInternalFieldPointer(object, InternalFields::kWrapperType, &kEmbedderId);
+    Nan::SetInternalFieldPointer(object, InternalFields::kSlot, this);
     persistent().Reset(object);
     MakeWeak();
   }
